@@ -1,9 +1,16 @@
 extends Node
 
-enum GameState {PHASE1_PREPARATION, PHASE2_COMBAT}
+enum GameState {
+        PHASE1_PREPARATION,
+        PHASE2_COMBAT,
+        PHASE3_REWARD,
+        PHASE4_ROOM_SELECTION
+}
+
 var current_state = GameState.PHASE1_PREPARATION
 var phase1_timer = 60.0 # 60 seconds for preparation phase
 var phase2_timer = 30.0 # 30 seconds for combat phase
+var reward_timer = 2.0  # placeholder reward duration
 
 signal phase_changed(new_phase)
 signal phase2_time_updated(time_remaining)
@@ -22,9 +29,9 @@ func _process(delta):
 			print("Phase 1 timer expired - transitioning to combat")
 			transition_to_phase2()
 			
-	# Handle phase 2 timer
-	elif current_state == GameState.PHASE2_COMBAT:
-		phase2_timer -= delta
+       # Handle phase 2 timer
+       elif current_state == GameState.PHASE2_COMBAT:
+               phase2_timer -= delta
 		# Prevent timer from going negative
 		if phase2_timer < 0:
 			phase2_timer = 0
@@ -34,13 +41,21 @@ func _process(delta):
 		var ally_creatures = get_tree().get_nodes_in_group("ally_creatures")
 		var enemy_creatures = get_tree().get_nodes_in_group("enemy_creatures")
 		
-		if ally_creatures.size() == 0 and enemy_creatures.size() == 0:
-			print("Both sides have no creatures - transitioning to preparation phase")
-			transition_to_phase1()
+               if ally_creatures.size() == 0 and enemy_creatures.size() == 0:
+                       print("Both sides have no creatures - transitioning to reward phase")
+                       transition_to_reward_phase()
 		# Also check if timer has expired
-		elif phase2_timer <= 0:
-			print("Combat time expired - transitioning to preparation phase")
-			transition_to_phase1()
+               elif phase2_timer <= 0:
+                       print("Combat time expired - transitioning to reward phase")
+                       transition_to_reward_phase()
+
+       elif current_state == GameState.PHASE3_REWARD:
+               reward_timer -= delta
+               if reward_timer <= 0:
+                       transition_to_room_selection()
+
+       elif current_state == GameState.PHASE4_ROOM_SELECTION:
+               pass  # Waiting for player to choose a room
 
 func transition_to_phase1():
 	current_state = GameState.PHASE1_PREPARATION
@@ -52,11 +67,23 @@ func transition_to_phase1():
 
 # In GameStateManager.gd
 func transition_to_phase2():
-	current_state = GameState.PHASE2_COMBAT
-	_unfreeze_all_creatures()  # Enable creatures for combat
-	_reset_phase2_timer()
-	emit_signal("phase_changed", current_state)
-	print("GAME STATE: Transitioned to Phase 2 (Combat)")
+        current_state = GameState.PHASE2_COMBAT
+        _unfreeze_all_creatures()  # Enable creatures for combat
+        _reset_phase2_timer()
+        emit_signal("phase_changed", current_state)
+        print("GAME STATE: Transitioned to Phase 2 (Combat)")
+
+func transition_to_reward_phase():
+       current_state = GameState.PHASE3_REWARD
+       _freeze_all_creatures(true)
+       reward_timer = 2.0
+       emit_signal("phase_changed", current_state)
+       print("GAME STATE: Transitioned to Phase 3 (Reward)")
+
+func transition_to_room_selection():
+       current_state = GameState.PHASE4_ROOM_SELECTION
+       emit_signal("phase_changed", current_state)
+       print("GAME STATE: Transitioned to Phase 4 (Room Selection)")
 
 func _unfreeze_all_creatures():
 	var creatures = get_tree().get_nodes_in_group("ally_creatures")
@@ -126,4 +153,7 @@ func _check_one_side_only() -> bool:
 
 # Always return true for now to simplify things
 func is_preparation_phase() -> bool:
-	return current_state == GameState.PHASE1_PREPARATION
+        return current_state == GameState.PHASE1_PREPARATION
+
+func is_room_selection_phase() -> bool:
+       return current_state == GameState.PHASE4_ROOM_SELECTION
