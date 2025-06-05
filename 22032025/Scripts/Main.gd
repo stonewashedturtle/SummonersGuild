@@ -20,6 +20,7 @@ var enemy_ai = null                # Reference to the EnemyAI instanc
 var spell_manager
 var hero = null
 var hero_scene = preload("res://Scenes/Hero.tscn")
+var room_selection_menu
 
 @onready var cooldown_indicator = $SummonCooldownIndicator
 
@@ -141,13 +142,20 @@ func _ready():
 	
 	# 12. Add ScriptDumper
 	var script_dumper_scene = preload("C:/Users/Jacob/Desktop/summoners-guild-0.001/Scripts/script_dumper.gd")
-	var script_dumper = script_dumper_scene.new()
-	add_child(script_dumper)
-	
-	# 13. Start in Phase 1
-	call_deferred("start_in_phase_one")
+        var script_dumper = script_dumper_scene.new()
+        add_child(script_dumper)
 
-	# Add this at the end
+        # 13. Start in Phase 1
+        call_deferred("start_in_phase_one")
+
+        # Load room selection menu but keep it hidden
+        var room_selection_scene = preload("res://Scenes/RoomSelectionMenu.tscn")
+        room_selection_menu = room_selection_scene.instantiate()
+        room_selection_menu.visible = false
+        add_child(room_selection_menu)
+        room_selection_menu.connect("room_chosen", Callable(self, "_on_room_chosen"))
+
+        # Add this at the end
 	call_deferred("diagnose_game_startup")
 
 	## In _ready() or where appropriate
@@ -163,7 +171,7 @@ func start_in_phase_one():
 	_on_phase_changed(GameStateManager.GameState.PHASE1_PREPARATION)
 
 func _on_phase_changed(new_phase):
-	if new_phase == GameStateManager.GameState.PHASE1_PREPARATION:
+        if new_phase == GameStateManager.GameState.PHASE1_PREPARATION:
 		print("PHASE 1: PREPARATION - Draw cards, fusion, and summoning")
 		
 		# Draw player cards up to 6 - ONLY IN PHASE 1
@@ -180,8 +188,22 @@ func _on_phase_changed(new_phase):
 		while enemy_hand.get_hand_size() < 6:
 			enemy_hand.draw_card()
 			enemy_cards_drawn += 1
-	else:
-		print("PHASE 2: COMBAT - No card drawing in this phase")
+       elif new_phase == GameStateManager.GameState.PHASE2_COMBAT:
+               print("PHASE 2: COMBAT - No card drawing in this phase")
+       elif new_phase == GameStateManager.GameState.PHASE3_REWARD:
+               print("PHASE 3: REWARD")
+               # Immediately transition to room selection for now
+               GameStateManager.transition_to_room_selection()
+       elif new_phase == GameStateManager.GameState.PHASE4_ROOM_SELECTION:
+               print("PHASE 4: ROOM SELECTION")
+               room_selection_menu.visible = true
+       else:
+               print("Unknown phase: ", new_phase)
+
+func _on_room_chosen(room_type):
+       print("Room chosen: ", room_type)
+       room_selection_menu.visible = false
+       GameStateManager.transition_to_phase1()
 	
 
 # Add a function to toggle the AI on/off during gameplay
